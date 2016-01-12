@@ -31,10 +31,20 @@ def parse_calisphere(reportrc=None):
     config.read('report.ini')
     solr_url = config.get('calisphere', 'solrUrl')
     solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
-    query = {
-        'q': '*:*'
+    base_query = {
+        'facet': 'true',
+        'facet.field': [ 'repository_data',
+                         'collection_data',
+                         'type_ss',
+                         'campus_url', ],
+        'rows': 0,
+        'facet.sort': 'index',
+        'facet.limit': 1000,
     }
-    result = json.loads(requests.get(solr_url, headers=solr_auth, params=query, verify=False).text)
+    non_uc_query = base_query
+    non_uc_query.update({'q': '-campus_url:*',})
+    pp(non_uc_query)
+    result = json.loads(requests.get(solr_url, headers=solr_auth, params=non_uc_query, verify=False).text)
 
     pp(result)
     
