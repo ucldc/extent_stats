@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" facet decade in python """
+""" calisphere extent stats """
 
 import sys
 import argparse
