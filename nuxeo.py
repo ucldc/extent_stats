@@ -25,6 +25,7 @@ def main(argv=None):
     # use Nuxeo REST API to list out top level directories
 
     # use Nuxeo REST API to get all Blob IDs
+    # http://explorer.nuxeo.com/nuxeo/site/distribution/Nuxeo%20Platform-6.0/viewOperation/Blob.GetAll
 
     # use S3 API to get the sizes of all Blobs
 
