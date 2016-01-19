@@ -59,9 +59,8 @@ def main(argv=None):
         
         report.write(row, 0, document['uid'])
         report.write(row, 1, p['ucldc_schema:localidentifier'][0])
-        if 'picture:views' in p:
-            imported_file = p['picture:views'][1]['filename']
-            report.write(row, 2, imported_file)
+        if 'file:filename' in p:
+            report.write(row, 2, p['file:filename'])
         report.write(row, 3, document['path'].replace(argv.path[0], '', 1))
         report.write(row, 4, document['title'])
         row = row + 1

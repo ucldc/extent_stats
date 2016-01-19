@@ -1,52 +1,81 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" nuxeo extent stats """
 
 import sys
 import argparse
-import re
-from datetime import date
-import itertools
-import json
-import xlsxwriter
-import requests
+import os
+from pynux import utils
+
 from pprint import pprint as pp
-import ConfigParser
-import time
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--pynuxrc')
 
+    parser = argparse.ArgumentParser(description='nxql via REST API')
+    parser.add_argument('nxql', nargs=1, help="nxql query")
+    parser.add_argument('--outdir', 
+        help="directory to hold application/json+nxentity .json files")
+    utils.get_common_options(parser)
     if argv is None:
         argv = parser.parse_args()
 
-    # use Nuxeo REST API to list out top level directories
+    nx = utils.Nuxeo(rcfile=argv.rcfile, loglevel=argv.loglevel.upper())
 
-    # use Nuxeo REST API to get all Blob IDs
-    # http://explorer.nuxeo.com/nuxeo/site/distribution/Nuxeo%20Platform-6.0/viewOperation/Blob.GetAll
+    documents = nx.nxql('select * from Document where ecm:path startswith"{0}"'.format(argv.nxql[0]))
+    if argv.outdir:
+        # Expand user- and relative-paths
+        outdir = os.path.abspath(os.path.expanduser(argv.outdir))
+        nx.copy_metadata_to_local(documents, outdir)
+    else:
+        for document in documents:
+            for blob in blob_from_doc(document):
+                if blob:
+                    print(format_blob(blob).encode('utf-8'))
 
-    # use S3 API to get the sizes of all Blobs
 
-    # count up all the bytes
+def format_blob(blob):
+    return u'\t'.join([
+        blob['uid'],
+        blob['path'],
+        blob['xpath'],
+        blob['name'],
+        blob['data'],
+        u'{}:{}'.format(blob['digestAlgorithm'],blob['digest']),
+        blob['length'],
+        blob['mime-type'],
+    ])
+    
 
-    # open the workbook
-    workbook = xlsxwriter.Workbook('nuxeo.xlsx')
-    # set up a worksheet for each page
-    workbook.close()
+def blob_from_doc(document):
+    blobs = []
+    if 'file:content' in document['properties'] and document['properties']['file:content']:
+        main_file = document['properties']['file:content']
+        main_file[u'xpath'] = 'file:content'
+        main_file[u'uid'] = document['uid']
+        main_file[u'path'] = document['path']
+        blobs.append(main_file)
+    if 'extra_files:file' in document['properties']:
+        for idx, blob in enumerate(document['properties']['extra_files:file']):
+            if blob['blob']:
+                blob['blob'][u'xpath'] = 'extra_files:file/blob[{0}]'.format(idx + 1)
+                blob['blob'][u'uid'] = document['uid']
+                blob['blob'][u'path'] = document['path']
+                blobs.append(blob['blob'])
+    return blobs
+
 
 
 # main() idiom for importing into REPL for debugging
 if __name__ == "__main__":
     sys.exit(main())
 
-
 """
 Copyright © 2016, Regents of the University of California
 All rights reserved.
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
+
 - Redistributions of source code must retain the above copyright notice,
   this list of conditions and the following disclaimer.
 - Redistributions in binary form must reproduce the above copyright notice,
@@ -55,6 +84,7 @@ modification, are permitted provided that the following conditions are met:
 - Neither the name of the University of California nor the names of its
   contributors may be used to endorse or promote products derived from this
   software without specific prior written permission.
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
