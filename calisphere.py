@@ -28,15 +28,6 @@ def main(argv=None):
     calisphere_data = parse_calisphere(argv.reportrc)
 
 
-"""
-  totals -> campus -> repository -> collection
-  totals -> decade 
-  totals -> type
-            #'repository_data',
-            #'collection_data',
-
-"""
-
 def parse_calisphere(reportrc=None):
     config = ConfigParser.SafeConfigParser()
     config.read('report.ini')
@@ -81,12 +72,13 @@ def parse_calisphere(reportrc=None):
 
     # open the workbook
     workbook = xlsxwriter.Workbook('combined.xlsx')
-    # set up a worksheet for each page
 
+    # formats
     header_format = workbook.add_format({'bold': True, })
     number_format = workbook.add_format()
     number_format.set_num_format('#,##0')
     
+    # set up a worksheet for each page
     campus = workbook.add_worksheet('Campus')
     # headers
     campus.write(0, 0, 'row', header_format)
