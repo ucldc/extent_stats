@@ -87,9 +87,9 @@ def parse_calisphere(reportrc=None):
     campus.write(0, 3, 'campus_url', header_format)
     # width
     campus.set_column(0, 0, 3, )
-    campus.set_column(0, 1, 10, )
-    campus.set_column(1, 2, 20, )
-    campus.set_column(2, 3, 43, )
+    campus.set_column(1, 1, 10, )
+    campus.set_column(2, 2, 20, )
+    campus.set_column(3, 3, 43, )
     row = 1
     for item in campus_data:
         campus.write_number(row, 0, row)
@@ -111,10 +111,10 @@ def parse_calisphere(reportrc=None):
     repository.write(0, 3, 'campus', header_format)
     repository.write(0, 4, 'repository_url', header_format)
     repository.set_column(0, 0, 3, )
-    repository.set_column(0, 1, 10, )
-    repository.set_column(1, 2, 45, )
-    repository.set_column(2, 3, 20, )
-    repository.set_column(3, 4, 43, )
+    repository.set_column(1, 1, 10, )
+    repository.set_column(2, 2, 45, )
+    repository.set_column(3, 3, 20, )
+    repository.set_column(4, 4, 43, )
     row = 1
     for item in repository_data:
         repository.write_number(row, 0, row)
@@ -141,9 +141,9 @@ def parse_calisphere(reportrc=None):
     collection.write(0, 3, 'collection_url', header_format)
     # width
     collection.set_column(0, 0, 3, )
-    collection.set_column(0, 1, 10, )
-    collection.set_column(1, 2, 45, )
-    collection.set_column(2, 3, 45, )
+    collection.set_column(1, 1, 10, )
+    collection.set_column(2, 2, 45, )
+    collection.set_column(3, 3, 45, )
     row = 1
     for item in collection_data:
         collection.write_number(row, 0, row)
