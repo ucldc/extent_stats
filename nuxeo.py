@@ -35,15 +35,16 @@ def main(argv=None):
     
     campus = workbook.add_worksheet('Campus')
     # headers
-    campus.write(0, 0, 'row', header_format)
-    campus.write(0, 1, 'uid', header_format)
-    campus.write(0, 2, 'path', header_format)
-    campus.write(0, 3, 'xpath', header_format)
-    campus.write(0, 4, 'name', header_format)
+    campus.write(0, 0, 'row#', header_format)
+    campus.write(0, 1, 'nuxeo-document-uid', header_format)
+    campus.write(0, 2, 'nuxeo-document-path', header_format)
+    campus.write(0, 3, 'nuxeo-document-xpath', header_format)
+    campus.write(0, 4, 'filename', header_format)
     campus.write(0, 5, 'data-url', header_format)
-    campus.write(0, 6, 'md5', header_format)
+    campus.write(0, 6, 'md5-digest', header_format)
     campus.write(0, 7, 'bytes', header_format)
-    campus.write(0, 8, 'mime-type', header_format)
+    campus.write(0, 8, 'bytes-fmt', header_format)
+    campus.write(0, 9, 'mime-type', header_format)
     # width
     campus.set_column(0, 0, 3, )
     campus.set_column(1, 1, 10, )
@@ -55,7 +56,8 @@ def main(argv=None):
     campus.set_column(7, 7, 10, )
     campus.set_column(8, 8, 10, )
 
-    row = 1 
+    row = 1
+    running_total = 0
     for document in documents:
         for blob in blob_from_doc(document):
             if blob:
@@ -67,12 +69,17 @@ def main(argv=None):
                 campus.write(row, 5, blob['data'],)
                 campus.write(row, 6, blob['digest'],)
                 campus.write(row, 7, int(blob['length']), number_format)
-                campus.write(row, 8, blob['mime-type'],)
+                campus.write(row, 8, sizeof_fmt(int(blob['length'])))
+                campus.write(row, 9, blob['mime-type'],)
                 row = row + 1
+                running_total = running_total + int(blob['length'])
+    campus.write(row, 7, running_total)
+    campus.write(row, 8, sizeof_fmt(running_total))
 
-    campus.write_formula(row, 7, '=SUM(H2:H{})'.format(row))
     run = '{}'.format(time.ctime())
     campus.write(row, 2, run)
+
+    workbook.close()
 
 
 def blob_from_doc(document):
@@ -86,11 +93,40 @@ def blob_from_doc(document):
     if 'extra_files:file' in document['properties']:
         for idx, blob in enumerate(document['properties']['extra_files:file']):
             if blob['blob']:
-                blob['blob'][u'xpath'] = 'extra_files:file/blob[{0}]'.format(idx + 1)
+                blob['blob'][u'xpath'] = 'extra_files:file/item[{0}]/blob'.format(idx + 1)
                 blob['blob'][u'uid'] = document['uid']
                 blob['blob'][u'path'] = document['path']
                 blobs.append(blob['blob'])
+    if 'picture:views' in document['properties']:
+        for idx, blob in enumerate(document['properties']['picture:views']):
+            blob['content'][u'xpath'] = 'picture:views/item[{0}]/content'.format(idx + 1)
+            blob['content'][u'uid'] = document['uid']
+            blob['content'][u'path'] = document['path']
+            blob['content'][u'name'] = blob['filename']
+            blobs.append(blob['content'])
+    if 'vid:storyboard' in document['properties']:
+        for idx, blob in enumerate(document['properties']['vid:storyboard']):
+            b = blob['content']
+            b['xpath'] = 'vid:storyboard/storyboarditem[{0}]/content'.format(idx + 1)
+            b['uid'] = document['uid']
+            b['path'] = document['path']
+            blobs.append(b)
+    if 'vid:transcodedVideos' in document['properties']:
+        for idx, blob in enumerate(document['properties']['vid:transcodedVideos']):
+            b = blob['content']
+            b['xpath'] = 'vid:storyboard/transcodedVideoItem[{0}]/content'.format(idx + 1)
+            b['uid'] = document['uid']
+            b['path'] = document['path']
+            blobs.append(b)
     return blobs
+
+def sizeof_fmt(num, suffix='B'):
+    # http://stackoverflow.com/a/1094933
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
 
 
 
