@@ -118,6 +118,13 @@ def blob_from_doc(document):
             b['uid'] = document['uid']
             b['path'] = document['path']
             blobs.append(b)
+    if 'auxiliary_files:file' in document['properties']:
+        for idx, blob in enumerate(document['properties']['auxiliary_files:file']):
+            b = blob
+            b['xpath'] = 'auxiliary_files:file/item[{0}]'.format(idx + 1)
+            b['uid'] = document['uid']
+            b['path'] = document['path']
+            blobs.append(b)
     return blobs
 
 def sizeof_fmt(num, suffix='B'):
