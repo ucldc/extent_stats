@@ -12,48 +12,70 @@ from pprint import pprint as pp
 
 
 def main(argv=None):
-
     parser = argparse.ArgumentParser(description='extent stats via Nuxeo REST API')
-    parser.add_argument('nxql', nargs=1, help="nxql query")
-    parser.add_argument('-x', '--xlsx', 
-        help="xlsx")
+    parser.add_argument('path', nargs=1, help="root path")
     utils.get_common_options(parser)
     if argv is None:
         argv = parser.parse_args()
 
     nx = utils.Nuxeo(rcfile=argv.rcfile, loglevel=argv.loglevel.upper())
 
-    documents = nx.nxql('select * from Document where ecm:path startswith"{0}"'.format(argv.nxql[0]))
+    campuses = nx.children(argv.path[0])
 
+    summary_workbook = xlsxwriter.Workbook('summary.xlsx')
+    summary_worksheet = summary_workbook.add_worksheet('summary')
+    total_count = running_total = 0
+    row = 1
+    for campus in campuses:
+        basename = os.path.basename(campus['path'])
+        documents = nx.nxql(
+            'select * from Document where ecm:path startswith"{0}"'.format(campus['path'])
+        )
+        (this_count, this_total) = forCampus(documents, basename)
+        summary_worksheet.write(row, 0, basename)
+        summary_worksheet.write(row, 1, this_total)
+        summary_worksheet.write(row, 2, sizeof_fmt(this_total))
+        summary_worksheet.write(row, 3, this_count))
+        total_count = total_count + this_count
+        running_total = running_total + this_total
+        row = row + 1
+    summary_worksheet.write(row, 1, running_total)
+    summary_worksheet.write(row, 2, sizeof_fmt(running_total))
+    summary_worksheet.write(row, 3, total_count)
+    summary_workbook.close()
+
+
+def forCampus(documents, basename):
     # open the workbook
-    workbook = xlsxwriter.Workbook(argv.xlsx)
+    workbook = xlsxwriter.Workbook(u'{0}.xlsx'.format(basename))
+
     # set up a worksheet for each page
 
     header_format = workbook.add_format({'bold': True, })
     number_format = workbook.add_format()
     number_format.set_num_format('#,##0')
     
-    campus = workbook.add_worksheet('Campus')
+    campus = workbook.add_worksheet(basename)
     # headers
     campus.write(0, 0, 'row#', header_format)
-    campus.write(0, 1, 'nuxeo-document-uid', header_format)
-    campus.write(0, 2, 'nuxeo-document-path', header_format)
-    campus.write(0, 3, 'nuxeo-document-xpath', header_format)
+    campus.write(0, 1, 'uid-nuxeo-document', header_format)
+    campus.write(0, 2, 'path-nuxeo-document', header_format)
+    campus.write(0, 3, 'xpath-nuxeo-document', header_format)
     campus.write(0, 4, 'filename', header_format)
-    campus.write(0, 5, 'data-url', header_format)
+    campus.write(0, 5, 'url', header_format)
     campus.write(0, 6, 'md5-digest', header_format)
     campus.write(0, 7, 'bytes', header_format)
     campus.write(0, 8, 'bytes-fmt', header_format)
     campus.write(0, 9, 'mime-type', header_format)
     # width
-    campus.set_column(0, 0, 3, )
+    campus.set_column(0, 0, 5, )
     campus.set_column(1, 1, 10, )
     campus.set_column(2, 2, 40, )
-    campus.set_column(3, 3, 5, )
+    campus.set_column(3, 3, 20, )
     campus.set_column(4, 4, 20, )
     campus.set_column(5, 5, 5, )
     campus.set_column(6, 6, 20, )
-    campus.set_column(7, 7, 10, )
+    campus.set_column(7, 7, 15, )
     campus.set_column(8, 8, 10, )
 
     row = 1
@@ -76,10 +98,12 @@ def main(argv=None):
     campus.write(row, 7, running_total)
     campus.write(row, 8, sizeof_fmt(running_total))
 
+    # note the current time
     run = '{}'.format(time.ctime())
     campus.write(row, 2, run)
 
     workbook.close()
+    return (row - 1, running_total)
 
 
 def blob_from_doc(document):
@@ -127,6 +151,7 @@ def blob_from_doc(document):
             blobs.append(b)
     return blobs
 
+
 def sizeof_fmt(num, suffix='B'):
     # http://stackoverflow.com/a/1094933
     for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
@@ -134,7 +159,6 @@ def sizeof_fmt(num, suffix='B'):
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
-
 
 
 # main() idiom for importing into REPL for debugging
