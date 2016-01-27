@@ -13,10 +13,13 @@ import requests
 from pprint import pprint as pp
 import ConfigParser
 import time
+import datetime
+import os
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
+    parser.add_argument('outdir', nargs=1,)
     parser.add_argument('--pynuxrc')
     parser.add_argument('--reportrc')
 
@@ -24,15 +27,18 @@ def main(argv=None):
         argv = parser.parse_args()
 
     #calisphere_extent = 
-
-    calisphere_data = parse_calisphere(argv.reportrc)
-
-
-def parse_calisphere(reportrc=None):
+    today = datetime.date.today()
     config = ConfigParser.SafeConfigParser()
     config.read('report.ini')
-    solr_url = config.get('calisphere', 'solrUrl')
-    solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
+
+    for env in ['calisphere', 'calisphere-test']:
+        solr_url = config.get(env, 'solrUrl')
+        solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
+        fileout = os.path.join(argv.outdir[0], '{}-{}.xlsx'.format(today, env))
+        parse_calisphere(solr_url, solr_auth, fileout, argv.reportrc)
+
+
+def parse_calisphere(solr_url, solr_auth, fileout, reportrc=None):
     base_query = {
         'facet': 'true',
         'facet.field': [
@@ -71,7 +77,7 @@ def parse_calisphere(reportrc=None):
     type_ss = zip(*[iter(type_ss)]*2)
 
     # open the workbook
-    workbook = xlsxwriter.Workbook('combined.xlsx')
+    workbook = xlsxwriter.Workbook(fileout)
 
     # formats
     header_format = workbook.add_format({'bold': True, })
