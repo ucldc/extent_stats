@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 
 import sys
 import argparse
@@ -10,10 +10,12 @@ import xlsxwriter
 import time
 import gzip
 import datetime
+import codecs
 
 from pprint import pprint as pp
 
 today = datetime.date.today()
+UTF8Writer = codecs.getwriter('utf8')
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='extent stats via Nuxeo REST API')
@@ -27,7 +29,7 @@ def main(argv=None):
     # look up all the files in S3, so we can double check that all
     # the files exist as we loop through Nuxeo
     file_check = None
-    pp(argv.s3_check)
+    s3_bytes = s3_count = 0
     if argv.s3_check:
         from boto import s3
         from boto.s3.connection import OrdinaryCallingFormat
@@ -38,6 +40,8 @@ def main(argv=None):
             file_check[key.name] = key.size
             if count % 50000 == 0:
                 print('{0} s3 files memorized'.format(count), file=sys.stderr)
+            s3_bytes = s3_bytes + key.size
+        s3_count = len(file_check)
 
     nx = utils.Nuxeo(rcfile=argv.rcfile, loglevel=argv.loglevel.upper())
 
@@ -51,12 +55,21 @@ def main(argv=None):
 
     summary_worksheet = summary_workbook.add_worksheet('summary')
     # headers
-    summary_worksheet.write(0, 1, 'total files', header_format)
-    summary_worksheet.write(0, 2, 'total bytes', header_format)
-    summary_worksheet.write(0, 4, 'deduplicated files', header_format)
-    summary_worksheet.write(0, 5, 'deduplicated bytes', header_format)
+    summary_worksheet.write(0, 1, 'deduplicated files', header_format)
+    summary_worksheet.write(0, 2, 'deduplicated bytes', header_format)
+    summary_worksheet.write(0, 4, 'total files', header_format)
+    summary_worksheet.write(0, 5, 'total bytes', header_format)
+    if argv.s3_check:
+        summary_worksheet.write(0, 7, 'files on S3', header_format)
+        summary_worksheet.write(0, 8, 'bytes on S3', header_format)
     # widths
-    summary_worksheet.set_column(0, 6, 10, )
+    summary_worksheet.set_column(0, 1, 10, )
+    summary_worksheet.set_column(2, 2, 25, )
+    summary_worksheet.set_column(3, 4, 10, )
+    summary_worksheet.set_column(5, 5, 25, )
+    summary_worksheet.set_column(6, 7, 10, )
+    summary_worksheet.set_column(8, 8, 25, )
+    summary_worksheet.set_column(9, 9, 10, )
     true_count = dedup_total = total_count = running_total = 0
     row = 1
     for campus in campuses:
@@ -66,24 +79,28 @@ def main(argv=None):
         )
         (this_count, this_total, dedup_count, dedup_bytes) = forCampus(documents, basename, file_check, argv.outdir[0])
         summary_worksheet.write(row, 0, basename)
-        summary_worksheet.write(row, 1, this_count, number_format)
-        summary_worksheet.write(row, 2, this_total, number_format)
-        summary_worksheet.write(row, 3, sizeof_fmt(this_total))
-        summary_worksheet.write(row, 4, dedup_count, number_format)
-        summary_worksheet.write(row, 5, dedup_bytes, number_format)
-        summary_worksheet.write(row, 6, sizeof_fmt(dedup_bytes))
+        summary_worksheet.write(row, 1, dedup_count, number_format)
+        summary_worksheet.write(row, 2, dedup_bytes, number_format)
+        summary_worksheet.write(row, 3, sizeof_fmt(dedup_bytes))
+        summary_worksheet.write(row, 4, this_count, number_format)
+        summary_worksheet.write(row, 5, this_total, number_format)
+        summary_worksheet.write(row, 6, sizeof_fmt(this_total))
         total_count = total_count + this_count  # number of files
         running_total = running_total + this_total  # number of bytes
         true_count = true_count + dedup_count
         dedup_total = dedup_total + dedup_bytes  # number of bytes
         row = row + 1
     summary_worksheet.write(row, 0, '{}'.format(today))
-    summary_worksheet.write(row, 1, total_count, number_format)
-    summary_worksheet.write(row, 2, running_total, number_format)
-    summary_worksheet.write(row, 3, sizeof_fmt(running_total))
-    summary_worksheet.write(row, 4, true_count, number_format)
-    summary_worksheet.write(row, 5, dedup_total, number_format)
-    summary_worksheet.write(row, 6, sizeof_fmt(dedup_total))
+    summary_worksheet.write(row, 1, true_count, number_format)
+    summary_worksheet.write(row, 2, dedup_total, number_format)
+    summary_worksheet.write(row, 3, sizeof_fmt(dedup_total))
+    summary_worksheet.write(row, 4, total_count, number_format)
+    summary_worksheet.write(row, 5, running_total, number_format)
+    summary_worksheet.write(row, 6, sizeof_fmt(running_total))
+    if argv.s3_check:
+        summary_worksheet.write(row, 7, s3_count, number_format)
+        summary_worksheet.write(row, 8, s3_bytes, number_format)
+        summary_worksheet.write(row, 9, sizeof_fmt(s3_bytes))
     summary_workbook.close()
 
 
@@ -92,7 +109,7 @@ def fileCheck(blob, file_check):
     if not s3_size:
         print('{0} from {1} {2} not found in S3'
               .format(blob['digest'], blob['path'], blob['xpath']))
-    if file_dict.get(blob['digest'], 0) != int(blob['length']):
+    if file_check.get(blob['digest'], 0) != int(blob['length']):
         print('{0} from {1} {2} s3 size {3} does not match nuxeo size {3}'
               .format(blob['digest'],
                       blob['path'],
@@ -106,23 +123,27 @@ def forCampus(documents, basename, file_check, outdir):
     row = 1
     running_total = 0
     campus = gzip.open(os.path.join(outdir, '{}-{}.txt.gz'.format(today, basename)), 'wb')
+    campus = UTF8Writer(campus)
     for document in documents:
         for blob in blob_from_doc(document):
             if blob:
                 if file_check:
-                    check_file(blob, file_check)
+                    fileCheck(blob, file_check)
+                if (row - 1) % 25000 == 0:
+                    print('{0} files checked'.format(row - 1), file=sys.stderr)
                 deduplicate[blob['digest']] = int(blob['length'])
-                campus.write(u'\t'.join([
-                    u'uid={}'.format(blob['uid']),
-                    u'path={}'.format(blob['path']),
-                    u'xpath={}'.format(blob['xpath']),
-                    u'name={}'.format(blob['name']),
-                    u'data={}'.format(blob['data']),
-                    u'md5={}'.format(blob['digest']),
-                    u'size={}'.format(int(blob['length'])),
-                    u'size_h={}'.format(sizeof_fmt(int(blob['length']))),
-                    u'media={}'.format(blob['mime-type']),
-                ]))
+                log_line = u'\t'.join([
+                    'uid={}'.format(blob['uid']),
+                    'path={}'.format(unicode(blob['path'])),
+                    'xpath={}'.format(blob['xpath']),
+                    'name={}'.format(blob['name']),
+                    'data={}'.format(blob['data']),
+                    'md5={}'.format(blob['digest']),
+                    'size={}'.format(int(blob['length'])),
+                    'size_h={}'.format(sizeof_fmt(int(blob['length']))),
+                    'media={}'.format(blob['mime-type']),
+                ])
+                campus.write(log_line)
                 campus.write(u'\n')
                 row = row + 1
                 running_total = running_total + int(blob['length'])
