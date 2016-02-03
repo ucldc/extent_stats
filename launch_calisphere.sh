@@ -6,8 +6,9 @@ cd $DIR
 
 if [[ ! -e venv27 ]]; then
   virtualenv --python python2.7 venv27
+  . venv27/bin/activate
   pip install xlsxwriter requests
 fi
 
-. ve/bin/activate
+. venv27/bin/activate
 PYTHONWARNINGS="ignore:Unverified HTTPS request" ./calisphere.py /dsc/webdocs/voro/calisphere.org
