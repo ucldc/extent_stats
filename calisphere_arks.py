@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """ calisphere extent stats """
-
+from __future__ import print_function
 import sys
 import argparse
 import re
@@ -19,7 +19,7 @@ requests.packages.urllib3.disable_warnings()
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    # parser.add_argument('outdir', nargs=1,)
+    parser.add_argument('outdir', nargs=1,)
 
     if argv is None:
         argv = parser.parse_args()
@@ -29,6 +29,8 @@ def main(argv=None):
 
     solr_url = config.get('calisphere', 'solrUrl')
     solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
+
+    outfile = open(os.path.join(argv.outdir[0], 'CALISPHERE.txt'), 'w+')
 
     base_query = {
         'q': 'identifier:"ark:/"',
@@ -40,7 +42,7 @@ def main(argv=None):
     ids = get_iter(solr_url, solr_auth, base_query)
     for ID in ids:
         ark = ID.get('id')
-        print( u'{0}\thttps://calisphere.org/item/{0}/'.format(ark))
+        print(u'{0}\thttps://calisphere.org/item/{0}/'.format(ark), file=outfile)
 
 
 def get_page(url, headers, params, cursor='*'):
