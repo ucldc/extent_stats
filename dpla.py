@@ -19,7 +19,7 @@ import os
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('output', nargs=1)
+    parser.add_argument('outdir', nargs=1,)
 
     if argv is None:
         argv = parser.parse_args()
@@ -28,13 +28,14 @@ def main(argv=None):
 
     #calisphere_extent = 
     today = datetime.date.today()
+    fileout = os.path.join(argv.outdir[0], '{}-dpla.xlsx'.format(today))
     config = ConfigParser.SafeConfigParser()
-    config.read('.dpla.ini')
+    config.read('report.ini')
     dpla_base = config.get('dpla', 'base')
     dpla_key = config.get('dpla', 'api_key')
     dpla_results = dpla_query(dpla_base, dpla_key)
     dpla_counts = dpla_results.get('facets').get('dataProvider').get('terms')
-    workbook = xlsxwriter.Workbook(argv.output[0])
+    workbook = xlsxwriter.Workbook(fileout)
     worksheet = workbook.add_worksheet('dp.la')
     row = 1
     for line in dpla_counts:
