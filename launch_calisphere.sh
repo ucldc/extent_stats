@@ -10,5 +10,8 @@ if [[ ! -e venv27 ]]; then
   pip install xlsxwriter requests
 fi
 
+mkdir -p /dsc/webdocs/voro/dp.la
+
 . venv27/bin/activate
 PYTHONWARNINGS="ignore:Unverified HTTPS request" ./calisphere.py /dsc/webdocs/voro/calisphere.org
+./dpla.py /dsc/webdocs/voro/dp.la
