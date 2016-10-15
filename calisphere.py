@@ -34,8 +34,8 @@ def main(argv=None):
     for junk in [
         ('all', ''),
         ('nuxeo', 'structmap_url:*'),
-        ('oac', '-structMap:[* TO *] AND -identifier:"ark.cdlib.org"'),
-        ('harvest', '-structMap:[* TO *] AND -identifier:"ark.cdlib.org"'),
+        ('oac', '-structmap_url:[* TO *] AND identifier:"ark.cdlib.org"'),
+        ('harvest', '-structmap_url:[* TO *] AND -identifier:"ark.cdlib.org"'),
     ]:
         solr_url = config.get('calisphere', 'solrUrl')
         solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
