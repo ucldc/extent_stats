@@ -31,14 +31,19 @@ def main(argv=None):
     config = ConfigParser.SafeConfigParser()
     config.read('report.ini')
 
-    for env in ['calisphere', 'calisphere-test']:
-        solr_url = config.get(env, 'solrUrl')
+    for junk in [
+        ('all', ''),
+        ('nuxeo', 'structmap_url:*'),
+        ('oac', '-structmap_url:[* TO *] AND identifier:"ark.cdlib.org"'),
+        ('harvest', '-structmap_url:[* TO *] AND -identifier:"ark.cdlib.org"'),
+    ]:
+        solr_url = config.get('calisphere', 'solrUrl')
         solr_auth = { 'X-Authentication-Token': config.get('calisphere', 'solrAuth') }
-        fileout = os.path.join(argv.outdir[0], '{}-{}.xlsx'.format(today, env))
-        parse_calisphere(solr_url, solr_auth, fileout, argv.reportrc)
+        fileout = os.path.join(argv.outdir[0], '{}-calisphere-{}.xlsx'.format(today, junk[0]))
+        parse_calisphere(solr_url, solr_auth, fileout, junk[1], argv.reportrc)
 
 
-def parse_calisphere(solr_url, solr_auth, fileout, reportrc=None):
+def parse_calisphere(solr_url, solr_auth, fileout, query, reportrc=None):
     base_query = {
         'facet': 'true',
         'facet.field': [
@@ -52,6 +57,7 @@ def parse_calisphere(solr_url, solr_auth, fileout, reportrc=None):
         'rows': 0,
         'facet.limit': 1000,
     }
+    base_query.update({'q': query})
 
     # non_uc_query.update({'q': '-campus_url:*',})
 
