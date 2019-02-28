@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-""" calisphere extent stats """
+""" calisphere ARKs by repository """
 
 import sys
 import argparse
@@ -55,16 +55,11 @@ def main(argv=None):
 
     ids = get_iter(solr_url, solr_auth, base_query)
     for ID in ids:
-        ark = ID.get('id')
-        relation = ID.get('collection_url')
-        title = ID.get('title')
-        creator = ID.get('creator')
-        date = ID.get('date')
-        relation = cleanup(relation)
-        title = cleanup(title)
-        creator = cleanup(creator)
-        date = cleanup(date)
-
+        ark = cleanup(ID.get('id'))
+        relation = cleanup(ID.get('collection_url'))
+        title = cleanup(ID.get('title'))
+        creator = cleanup(ID.get('creator'))
+        date = cleanup(ID.get('date'))
         print('{0}\thttps://calisphere.org/item/{0}/\t{1}\t{2}\t{3}\t{4}'.format(ark, relation, title, creator, date,), file=outfile)
 
 
