@@ -35,7 +35,7 @@ def main(argv=None):
 
     repository_query = u"repository_url:https://registry.cdlib.org/api/v1/repository/{}/".format(argv.institution_number[0])
 
-    print(repository_query)
+    #print(repository_query)
 
 # {'creator': ['Federal Energy Regulatory Commission'],
 # 'date': ['10/22/02'],
@@ -45,17 +45,22 @@ def main(argv=None):
 #           "Traverse City Light and Power's Sabin Project"]}
 
     base_query = {
-        'q': 'identifier:"ark:/" AND {}'.format(repository_query),
-	'fl': 'id, collection_url, title, creator, date',  # fl = field list
+        'q': 'identifier:"ark:/13030/" AND {}'.format(repository_query),
+	'fields': 'id, collection_url, title, creator, date',  # fl = field list
         'rows': 1000,
         'sort': 'score desc,id desc',
+        'mm': '100%',
+        'pf3': 'title',
+        'pf': 'text,title',
+        'qs': 12,
+        'ps': 12,
     }
 
     outfile=sys.stdout
 
     ids = get_iter(solr_url, solr_auth, base_query)
     for ID in ids:
-        ark = cleanup(ID.get('id'))
+        ark = cleanup([ID.get('id')])
         relation = cleanup(ID.get('collection_url'))
         title = cleanup(ID.get('title'))
         creator = cleanup(ID.get('creator'))
@@ -94,7 +99,7 @@ if __name__ == "__main__":
 
 
 """
-Copyright © 2016, Regents of the University of California
+Copyright © 2019, Regents of the University of California
 All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
