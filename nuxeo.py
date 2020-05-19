@@ -110,7 +110,7 @@ def fileCheck(blob, file_check):
         print('{0} from {1} {2} not found in S3'
               .format(blob['digest'], blob['path'], blob['xpath']))
     if file_check.get(blob['digest'], 0) != int(blob['length']):
-        print('{0} from {1} {2} s3 size {3} does not match nuxeo size {3}'
+        print('{0} from {1} {2} s3 size {3} does not match nuxeo size {4}'
               .format(blob['digest'],
                       blob['path'],
                       blob['xpath'],
@@ -161,7 +161,6 @@ def blob_from_doc(document):
         blobs.append(main_file)
     if 'files:files' in document['properties']:
         for idx, blob in enumerate(document['properties']['files:files']):
-            pp(blob)
             if blob['file']:
                 blob['file']['xpath'] = 'files:files/item[{0}]/file'.format(idx + 1)
                 blob['file']['uid'] = document['uid']
