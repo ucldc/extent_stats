@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function, unicode_literals
+
 
 import sys
 import argparse
@@ -25,6 +25,8 @@ def main(argv=None):
     utils.get_common_options(parser)
     if argv is None:
         argv = parser.parse_args()
+
+    os.makedirs(argv.outdir[0], exist_ok=True)
 
     # look up all the files in S3, so we can double check that all
     # the files exist as we loop through Nuxeo
@@ -132,9 +134,9 @@ def forCampus(documents, basename, file_check, outdir):
                 if (row - 1) % 25000 == 0:
                     print('{0} files checked'.format(row - 1), file=sys.stderr)
                 deduplicate[blob['digest']] = int(blob['length'])
-                log_line = u'\t'.join([
+                log_line = '\t'.join([
                     'uid={}'.format(blob['uid']),
-                    'path={}'.format(unicode(blob['path'])),
+                    'path={}'.format(str(blob['path'])),
                     'xpath={}'.format(blob['xpath']),
                     'name={}'.format(blob['name']),
                     'data={}'.format(blob['data']),
@@ -144,41 +146,41 @@ def forCampus(documents, basename, file_check, outdir):
                     'media={}'.format(blob['mime-type']),
                 ])
                 campus.write(log_line)
-                campus.write(u'\n')
+                campus.write('\n')
                 row = row + 1
                 running_total = running_total + int(blob['length'])
     campus.close()
-    return (row - 1, running_total, len(deduplicate), sum(deduplicate.itervalues()))
+    return (row - 1, running_total, len(deduplicate), sum(deduplicate.values()))
 
 
 def blob_from_doc(document):
     blobs = []
     if 'file:content' in document['properties'] and document['properties']['file:content']:
         main_file = document['properties']['file:content']
-        main_file[u'xpath'] = 'file:content'
-        main_file[u'uid'] = document['uid']
-        main_file[u'path'] = document['path']
+        main_file['xpath'] = 'file:content'
+        main_file['uid'] = document['uid']
+        main_file['path'] = document['path']
         blobs.append(main_file)
     if 'files:files' in document['properties']:
         for idx, blob in enumerate(document['properties']['files:files']):
             if blob['file']:
                 blob['file']['xpath'] = 'files:files/item[{0}]/file'.format(idx + 1)
                 blob['file']['uid'] = document['uid']
-                blob['file'][u'path'] = document['path']
+                blob['file']['path'] = document['path']
                 blobs.append(blob['file'])
     if 'extra_files:file' in document['properties']:
         for idx, blob in enumerate(document['properties']['extra_files:file']):
             if blob['blob']:
-                blob['blob'][u'xpath'] = 'extra_files:file/item[{0}]/blob'.format(idx + 1)
-                blob['blob'][u'uid'] = document['uid']
-                blob['blob'][u'path'] = document['path']
+                blob['blob']['xpath'] = 'extra_files:file/item[{0}]/blob'.format(idx + 1)
+                blob['blob']['uid'] = document['uid']
+                blob['blob']['path'] = document['path']
                 blobs.append(blob['blob'])
     if 'picture:views' in document['properties']:
         for idx, blob in enumerate(document['properties']['picture:views']):
-            blob['content'][u'xpath'] = 'picture:views/item[{0}]/content'.format(idx + 1)
-            blob['content'][u'uid'] = document['uid']
-            blob['content'][u'path'] = document['path']
-            blob['content'][u'name'] = blob['filename']
+            blob['content']['xpath'] = 'picture:views/item[{0}]/content'.format(idx + 1)
+            blob['content']['uid'] = document['uid']
+            blob['content']['path'] = document['path']
+            blob['content']['name'] = blob['filename']
             blobs.append(blob['content'])
     if 'vid:storyboard' in document['properties']:
         for idx, blob in enumerate(document['properties']['vid:storyboard']):
