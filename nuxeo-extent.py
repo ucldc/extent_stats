@@ -7,7 +7,6 @@ import argparse
 import os
 from pynux import utils
 import xlsxwriter
-import time
 import gzip
 import datetime
 import codecs
@@ -20,7 +19,6 @@ UTF8Writer = codecs.getwriter("utf8")
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="extent stats via Nuxeo REST API")
-    parser.add_argument("path", nargs=1, help="root path")
     parser.add_argument(
         "outdir", nargs=1,
     )
@@ -51,7 +49,19 @@ def main(argv=None):
 
     nx = utils.Nuxeo(rcfile=argv.rcfile, loglevel=argv.loglevel.upper())
 
-    campuses = nx.children(argv.path[0])
+    campuses = [
+        "UCB",
+        "UCD",
+        "UCI",
+        "UCLA",
+        "UCM",
+        "UCOP",
+        "UCR",
+        "UCSB",
+        "UCSC",
+        "UCSD",
+        "UCSF",
+    ]
 
     summary_workbook = xlsxwriter.Workbook(
         os.path.join(argv.outdir[0], "{}-summary.xlsx".format(today))
@@ -95,27 +105,26 @@ def main(argv=None):
     true_count = dedup_total = total_count = running_total = 0
     row = 1
     for campus in campuses:
-        basename = os.path.basename(campus["path"])
-        documents = nx.nxql(
-            'select * from Document where ecm:path startswith"{0}"'.format(
-                campus["path"]
-            )
-        )
         (this_count, this_total, dedup_count, dedup_bytes) = forCampus(
-            documents, basename, file_check, argv.outdir[0]
+            campus, file_check, argv.outdir[0], nx
         )
-        summary_worksheet.write(row, 0, basename)
+        # write out this row in the sheet
+        summary_worksheet.write(row, 0, campus)
         summary_worksheet.write(row, 1, dedup_count, number_format)
         summary_worksheet.write(row, 2, dedup_bytes, number_format)
         summary_worksheet.write(row, 3, sizeof_fmt(dedup_bytes))
         summary_worksheet.write(row, 4, this_count, number_format)
         summary_worksheet.write(row, 5, this_total, number_format)
         summary_worksheet.write(row, 6, sizeof_fmt(this_total))
+
+        # keep track of running totals
         total_count = total_count + this_count  # number of files
         running_total = running_total + this_total  # number of bytes
         true_count = true_count + dedup_count
         dedup_total = dedup_total + dedup_bytes  # number of bytes
         row = row + 1
+
+    # write totals in the summary worksheet
     summary_worksheet.write(row, 0, "{}".format(today))
     summary_worksheet.write(row, 1, true_count, number_format)
     summary_worksheet.write(row, 2, dedup_total, number_format)
@@ -131,6 +140,8 @@ def main(argv=None):
 
 
 def fileCheck(blob, file_check):
+    """ check if file exists in S3, and check size
+    """
     s3_size = file_check.get(blob["digest"], None)
     if not s3_size:
         print(
@@ -146,14 +157,41 @@ def fileCheck(blob, file_check):
         )
 
 
-def forCampus(documents, basename, file_check, outdir):
+def forCampus(campus, file_check, outdir, nx):
+    """ runs for each campus """
     deduplicate = {}
     row = 1
-    running_total = 0
-    campus = gzip.open(
-        os.path.join(outdir, "{}-{}.txt.gz".format(today, basename)), "wb"
+    total_count = true_count = dedup_total = running_total = 0
+    campus_report = gzip.open(
+        os.path.join(outdir, "{}-{}.txt.gz".format(today, campus)), "wb"
     )
-    campus = UTF8Writer(campus)
+    campus_report = UTF8Writer(campus_report)
+    next_level_dirs = nx.children(f"/asset-library/{campus}")
+    for org in next_level_dirs:
+        (this_count, this_total, dedup_count, dedup_bytes) = forOrg(
+            org, file_check, outdir, nx, row, deduplicate, campus_report
+        )
+        # keep track of running totals
+        total_count = total_count + this_count  # number of files
+        running_total = running_total + this_total  # number of bytes
+        true_count = true_count + dedup_count
+        dedup_total = dedup_total + dedup_bytes  # number of bytes
+        row = row + 1
+
+    campus_report.close()
+    # TODO add campus level spreadsheet reports
+    # TODO this is where we will write the the reporting database
+    # TODO return this_count, this_total, dedup_count, dedup_bytes
+    return (total_count, running_total, true_count, dedup_total)
+
+
+def forOrg(nxdoc, file_check, outdir, nx, row, deduplicate, campus):
+    """ runs for each top level sub folder in a campus """
+    # this matches with one row of data in the reporting database
+    documents = nx.nxql(
+        'select * from Document where ecm:path startswith"{0}"'.format(nxdoc["path"])
+    )
+    running_total = 0
     for document in documents:
         for blob in blob_from_doc(document):
             if blob:
@@ -179,11 +217,13 @@ def forCampus(documents, basename, file_check, outdir):
                 campus.write("\n")
                 row = row + 1
                 running_total = running_total + int(blob["length"])
-    campus.close()
+    # TODO add a calipshere compatable count
     return (row - 1, running_total, len(deduplicate), sum(deduplicate.values()))
 
 
 def blob_from_doc(document):
+    """ find all the binary blobs in this object """
+    # TODO: add in threeD schema / or make more generic blob scraper
     blobs = []
     if (
         "file:content" in document["properties"]
